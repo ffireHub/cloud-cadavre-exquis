@@ -33,21 +33,85 @@ resource "openstack_compute_keypair_v2" "keypair" {
 # Create the security group
 ###
 
-resource "openstack_networking_secgroup_v2" "kube_secgroup" {
-  name        = "kube_security_group"
+resource "openstack_networking_secgroup_v2" "kube_secgroup_controller" {
+  name        = "kube security group controller"
   description = "Security group for Kubernetes cluster"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "kube_api" {
+resource "openstack_networking_secgroup_rule_v2" "Kubernetes_API_server" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 6443
   port_range_max    = 6443
   remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
-  security_group_id = openstack_networking_secgroup_v2.kube_secgroup.id
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_controller.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "Etcd_server_client_API" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 2379
+  port_range_max    = 2380
+  remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_controller.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "Kubelet_API_controller" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 10250
+  port_range_max    = 10250
+  remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_controller.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "kube-scheduler" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 10251
+  port_range_max    = 10251
+  remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_controller.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "kube-controller-manager" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 10252
+  port_range_max    = 10252
+  remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_controller.id
+}
+
+resource "openstack_networking_secgroup_v2" "kube_secgroup_worker" {
+  name        = "kube security group worker"
+  description = "Security group for Kubernetes cluster"
+}
+
+resource "openstack_networking_secgroup_rule_v2" "Kubelet_API_worker" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 10250
+  port_range_max    = 10250
+  remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_worker.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "NodePort_Services" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 30000
+  port_range_max    = 32767
+  remote_ip_prefix  = "0.0.0.0/0" # Adjust this as needed for your security requirements
+  security_group_id = openstack_networking_secgroup_v2.kube_secgroup_worker.id
+}
 
 
 ###
@@ -68,7 +132,7 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
     sudo chmod 600 /home/fedora/.ssh/authorized_keys
     echo "###" > /tmp/authorized_keys
   EOF
-  security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup.name]
+  security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup_controller.name]
   network {
     uuid = "6011fbc9-4cbf-46a4-8452-6890a340b60b"
     name = "Ext-Net"
@@ -103,7 +167,7 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
     sudo chmod 600 /home/fedora/.ssh/authorized_keys
     echo "###" > /tmp/authorized_keys
   EOF
-  security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup.name]
+  security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup_worker.name]
   network {
     uuid = "6011fbc9-4cbf-46a4-8452-6890a340b60b"
     name = "Ext-Net"
