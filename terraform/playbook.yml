@@ -28,6 +28,12 @@
         state: present
       tags: install
 
+    - name: Mettre SELinux en permissive
+      ansible.posix.selinux:
+        policy: targeted
+        state: permissive
+      tags: install
+
     - name: Add Kubernetes yum repository
       ansible.builtin.yum_repository:
         name: kubernetes
