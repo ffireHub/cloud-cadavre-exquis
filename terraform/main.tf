@@ -4,3 +4,7 @@ module "Install_instance_and_kube" {
   OS_APPLICATION_SECRET = var.OS_APPLICATION_SECRET
   OS_CONSUMER_KEY = var.OS_CONSUMER_KEY
 }
+
+module "Install_flux" {
+  source = "./install_flux"
+}
