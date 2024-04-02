@@ -1,0 +1,283 @@
+---
+- name: Install Kubernetes Components and Dependencies
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for instance to be ready
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+      tags: install
+
+    - name: Disable swap for current session
+      ansible.builtin.command: sudo swapoff -a
+      changed_when: false
+      tags: install
+
+    - name: Disable swap permanently, persist reboots
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+        replace: '#\1\2\3swap\4'
+        backup: true
+      tags: install
+
+    - name: Remove packages for swap
+      ansible.builtin.dnf:
+        name: '{{ packages }}'
+        state: absent
+        update_cache: true
+      vars:
+        packages:
+          - zram-generator
+          - zram-generator-defaults
+      tags: install
+
+    - name: Disable SELinux
+      ansible.posix.selinux:
+        state: disabled
+      tags: install
+
+    - name: Reboots
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 60
+      tags: install
+
+    - name: Wait for instance to be ready
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+      tags: install
+
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name: dnf-plugins-core
+        state: present
+        update_cache: true
+      tags: install
+
+    - name: Add Docker CE repository
+      ansible.builtin.command:
+        cmd: dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+      tags: install
+
+    - name: Install docker-ce and dependencies
+      ansible.builtin.dnf:
+        name: '{{ packages }}'
+        state: present
+        update_cache: true
+      vars:
+        packages:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+      tags: install
+
+    - name: Enable and start docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      tags: install
+
+    - name: Enable and start containerd
+      ansible.builtin.service:
+        name: containerd
+        state: started
+        enabled: true
+      tags: install
+
+    - name: Enable CRI plugin in containerd
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*disabled_plugins\s*=\s*\["cri"\]'
+        line: '# disabled_plugins = ["cri"]'
+        state: present
+      notify: Restart containerd
+      tags: install
+
+    - name: Chargement du module br_netfilter
+      community.general.modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Assurer le chargement automatique du module br_netfilter
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/br_netfilter.conf
+        content: br_netfilter
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configuration de sysctl pour le trafic ponté via iptables
+      ansible.posix.sysctl:
+        name: '{{ item.name }}'
+        value: '{{ item.value }}'
+        state: present
+        reload: true
+      loop:
+        - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+        - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+      notify: Reload sysctl
+
+    - name: Add Kubernetes yum repository
+      ansible.builtin.yum_repository:
+        name: kubernetes
+        description: Kubernetes Repository
+        baseurl: https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+        gpgcheck: true
+        gpgkey: https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
+        enabled: true
+        state: present
+      tags: install
+
+    - name: Install kubelet, kubeadm, kubectl, and iproute-tc
+      ansible.builtin.dnf:
+        name: '{{ packages }}'
+        state: present
+        update_cache: true
+      vars:
+        packages:
+          - kubelet
+          - kubeadm
+          - kubectl
+          - iproute-tc
+      tags: install
+
+    - name: Enable and start kubelet
+      ansible.builtin.service:
+        name: kubelet
+        state: started
+        enabled: true
+      tags: install
+
+  handlers:
+    - name: Restart docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+        enabled: true
+    - name: Reload sysctl
+      ansible.builtin.command:
+        cmd: sysctl --system
+    - name: Restart containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+        enabled: true
+
+- name: Setup Kubernetes Controller
+  hosts: controller
+  become: true
+  tasks:
+    - name: Create kubeadm config file
+      ansible.builtin.copy:
+        dest: '/root/kubeadm-config.yaml'
+        content: |
+          apiVersion: kubeadm.k8s.io/v1beta3
+          kind: InitConfiguration
+          nodeRegistration:
+            criSocket: "unix:///run/containerd/containerd.sock"
+          ---
+          apiVersion: kubeadm.k8s.io/v1beta3
+          kind: ClusterConfiguration
+          kubernetesVersion: "1.29.3"
+          networking:
+            serviceSubnet: "10.96.0.0/12"
+            podSubnet: "10.244.0.0/16"
+            dnsDomain: "cluster.local"
+        owner: root
+        group: root
+        mode: '0644'
+      tags: setup_controller
+
+    - name: Pull kubeadm required images
+      ansible.builtin.command: sudo kubeadm config images pull
+      tags: setup_controller
+
+    - name: Initialize Kubernetes master
+      ansible.builtin.command: sudo kubeadm init --config /root/kubeadm-config.yaml
+      tags: setup_controller
+
+    - name: Install Calico network plugin
+      ansible.builtin.shell: sudo kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      tags: setup_controller
+
+    - name: Create directory for kube config
+      ansible.builtin.file:
+        path: /home/fedora/.kube
+        state: directory
+        owner: 'fedora'
+        group: 'fedora'
+        mode: '0755'
+      tags: setup_controller
+
+    - name: Copy kube config file for regular user
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/fedora/.kube/config
+        owner: 'fedora'
+        group: 'fedora'
+        mode: '0644'
+        remote_src: true
+      tags: setup_controller
+    - name: Fetch kube config file
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: ./kubeconfig
+        flat: true
+      tags: setup_controller
+    - name: Get join command
+      ansible.builtin.command: sudo kubeadm token create --print-join-command
+      register: join_command_raw
+      changed_when: false
+      tags: setup_controller
+
+    - name: Set join command for worker nodes
+      ansible.builtin.set_fact:
+        join_command: '{{ join_command_raw.stdout }}'
+      tags: setup_controller
+
+- name: Setup Kubernetes Worker Nodes
+  hosts: workers
+  become: true
+  tasks:
+    - name: Join cluster
+      ansible.builtin.shell: "{{ hostvars['controller']['join_command'] }}"
+      tags: setup_worker
+
+
+# - name: Install FluxCD
+#   hosts: controller
+#   become: true
+#   tasks:
+#       - name: Download FluxCD installation script
+#         ansible.builtin.get_url:
+#             url: https://toolkit.fluxcd.io/install.sh
+#             dest: /tmp/install_flux.sh
+#             mode: '0755'
+#         tags: install
+#       - name: Install FluxCD
+#         ansible.builtin.shell: |
+#             set -eo pipefail
+#             if ! command -v flux >/dev/null; then
+#                 sudo /tmp/install_flux.sh
+#             fi
+#         tags: install
+#         register: flux_install_result
+#         changed_when: '"CHANGED" in flux_install_result.stdout'
+#       - name: Set up FluxCD
+#         ansible.builtin.shell: |
+#           flux bootstrap github \
+#           --owner=ffirehub \
+#           --repository=cloud-cadavre-exquis \
+#           --branch=master \
+#           --path=helm \
+#           --token=
+#         register: flux_setup_result
+#         changed_when: flux_setup_result.rc == 0
+#         tags: install

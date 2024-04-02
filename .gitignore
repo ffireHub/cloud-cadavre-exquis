@@ -6,3 +6,4 @@ terraform/terraform.tfstate*
 terraform/.terraform
 terraform/.terraform.lock.hcl
 *.vscode
+**/kubeconfig

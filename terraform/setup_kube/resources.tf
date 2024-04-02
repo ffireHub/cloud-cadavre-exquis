@@ -198,7 +198,7 @@ resource "null_resource" "ansible_provisioning" {
  }
 
  provisioner "local-exec" {
-   command = "ansible-playbook -u fedora -i /tmp/worker_ips ./playbook.yml -i /tmp/controller_ips"
+   command = "ansible-playbook -u fedora -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
  }
 }
 
