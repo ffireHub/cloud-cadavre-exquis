@@ -33,6 +33,46 @@
           - zram-generator-defaults
       tags: install
 
+    - name: Create an empty file for the Containerd module
+      ansible.builtin.copy:
+        content: ''
+        dest: /etc/modules-load.d/containerd.conf
+        force: false
+        mode: '0644'
+        owner: root
+        group: root
+      tags: install
+
+    - name: Configure modules for Containerd
+      ansible.builtin.blockinfile:
+        path: /etc/modules-load.d/containerd.conf
+        block: |
+          overlay
+          br_netfilter
+      tags: install
+
+    - name: Create an empty file for Kubernetes sysctl params
+      ansible.builtin.copy:
+        content: ''
+        dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        force: false
+        mode: '0644'
+        owner: root
+        group: root
+      tags: install
+
+    - name: Configure sysctl params for Kubernetes
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.d/99-kubernetes-cri.conf
+        line: '{{ item }}'
+      with_items:
+        - 'net.bridge.bridge-nf-call-iptables  = 1'
+        - 'net.ipv4.ip_forward                 = 1'
+        - 'net.bridge.bridge-nf-call-ip6tables = 1'
+
+    - name: Apply sysctl params without reboot
+      ansible.builtin.command: sysctl --system
+
     - name: Disable SELinux
       ansible.posix.selinux:
         state: disabled
@@ -75,6 +115,26 @@
           - docker-compose-plugin
       tags: install
 
+    - name: Create Containerd directory
+      ansible.builtin.file:
+        path: /etc/containerd
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: install
+
+    - name: Add Containerd configuration
+      ansible.builtin.shell: /usr/bin/containerd config default > /etc/containerd/config.toml
+      tags: install
+
+    - name: Configuring the systemd cgroup driver for Containerd
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '            SystemdCgroup = false'
+        line: '            SystemdCgroup = true'
+      tags: install
+
     - name: Enable and start docker
       ansible.builtin.service:
         name: docker
@@ -102,6 +162,7 @@
       community.general.modprobe:
         name: br_netfilter
         state: present
+      tags: install
 
     - name: Assurer le chargement automatique du module br_netfilter
       ansible.builtin.copy:
@@ -110,17 +171,19 @@
         owner: root
         group: root
         mode: '0644'
+      tags: install
 
-    - name: Configuration de sysctl pour le trafic ponté via iptables
+    - name: Set bridge-nf-call-iptables
       ansible.posix.sysctl:
-        name: '{{ item.name }}'
-        value: '{{ item.value }}'
-        state: present
-        reload: true
-      loop:
-        - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
-        - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
-      notify: Reload sysctl
+        name: net.bridge.bridge-nf-call-iptables
+        value: 1
+      tags: install
+
+    - name: Set ip_forward
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+      tags: install
 
     - name: Add Kubernetes yum repository
       ansible.builtin.yum_repository:
@@ -151,6 +214,17 @@
         name: kubelet
         state: started
         enabled: true
+      tags: install
+
+    - name: Reboots
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 60
+      tags: install
+
+    - name: Wait for instance to be ready
+      ansible.builtin.wait_for_connection:
+        timeout: 300
       tags: install
 
   handlers:
@@ -185,9 +259,20 @@
           kind: ClusterConfiguration
           kubernetesVersion: "1.29.3"
           networking:
-            serviceSubnet: "10.96.0.0/12"
             podSubnet: "10.244.0.0/16"
-            dnsDomain: "cluster.local"
+          ---
+             apiVersion: kubelet.config.k8s.io/v1beta1
+             kind: KubeletConfiguration
+             runtimeRequestTimeout: "15m"
+             cgroupDriver: "systemd"
+             systemReserved:
+               cpu: 100m
+               memory: 350M
+             kubeReserved:
+               cpu: 100m
+               memory: 50M
+             enforceNodeAllocatable:
+             - pods
         owner: root
         group: root
         mode: '0644'
@@ -249,8 +334,6 @@
     - name: Join cluster
       ansible.builtin.shell: "{{ hostvars['controller']['join_command'] }}"
       tags: setup_worker
-
-
 # - name: Install FluxCD
 #   hosts: controller
 #   become: true
