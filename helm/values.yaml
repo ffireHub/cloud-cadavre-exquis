@@ -68,3 +68,20 @@ postgresql:
   database: "cadavre"
   auth:
     postgresPassword: "postgres"
+
+hooks:
+  pre-install:
+    - name: init-db
+      manifest: |-
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: init-db
+        spec:
+          template:
+            spec:
+              containers:
+              - name: init-db
+                image: docker.io/bitnami/postgresql:15.4.0-debian-11-r10
+                command: ["./init-db.sh"]
+              restartPolicy: OnFailure
