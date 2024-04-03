@@ -20,7 +20,7 @@ provider "github" {
 
 provider "flux" {
   kubernetes = {
-    config_path = "./kube.conf"
+    config_path = var.kubeconfig_path
   }
   git = {
     url = "ssh://git@github.com/${var.github_org}/${var.github_repository}.git"

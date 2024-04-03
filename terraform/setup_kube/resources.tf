@@ -231,3 +231,8 @@ resource "null_resource" "ansible_provisioning" {
    command = "ansible-playbook -u debian -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
  }
 }
+
+output "cluster_ready_marker" {
+  depends_on = [ null_resource.ansible_provisioning ]
+  value = "./kube.conf"
+}
