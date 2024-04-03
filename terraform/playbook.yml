@@ -1,161 +1,206 @@
 ---
-- name: Install KubernetesADM
+- name: Prepare hosts
   hosts: all
   become: true
   gather_facts: false
   tasks:
-    - name: Wait for instance be ready
+    - name: Wait for hosts to be ready
       ansible.builtin.wait_for_connection:
+        delay: 10
         timeout: 300
-      tags: install
-    - name: Install docker
-      ansible.builtin.dnf:
-        name: docker
-        state: present
-        update_cache: true
-      tags: install
 
-    - name: Start and enable docker
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: true
-      tags: install
-
-    - name: Install apt-transport-https
-      ansible.builtin.dnf:
-        name: apt-transport-https
-        state: present
-      tags: install
-
-    - name: Mettre SELinux en permissive
-      ansible.posix.selinux:
-        policy: targeted
-        state: permissive
-      tags: install
-
-    - name: Add Kubernetes yum repository
-      ansible.builtin.yum_repository:
-        name: kubernetes
-        description: Kubernetes Repository
-        baseurl: https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
-        gpgcheck: true
-        gpgkey: https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
-        enabled: true
-        state: present
-      tags: install
-
-    - name: Install kubelet kubeadm kubectl
-      ansible.builtin.dnf:
-        name: '{{ packages }}'
-        state: present
-        update_cache: true
-      tags: install
-      vars:
-        packages:
-          - kubelet
-          - kubeadm
-          - kubectl
-          - iproute-tc
-    - name: Enable and start kubelet
-      ansible.builtin.service:
-        name: kubelet
-        state: started
-        enabled: true
-      tags: install
-    - name: Remove swap package
-      ansible.builtin.dnf:
-        name: zram-generator-defaults
-        state: absent
-      tags: install
     - name: Disable swap
-      ansible.builtin.shell: sudo swapoff -a
-      tags: install
-    - name: Restart containerd
-      ansible.builtin.service:
+      ansible.builtin.command: sudo swapoff -a
+      # ignore_errors: true
+    - name: Disable swap permanently
+      ansible.builtin.lineinfile:
+        dest: /etc/fstab
+        regexp: '^/swapfile'
+        state: absent
+
+    - name: Ensure the overlay and br_netfilter modules are loaded at boot
+      ansible.builtin.copy:
+        content: |
+          overlay
+          br_netfilter
+        dest: /etc/modules-load.d/containerd.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Load modules
+      community.general.modprobe:
+        name: '{{ item }}'
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Ensure sysctl params are set
+      ansible.posix.sysctl:
+        name: '{{ item }}'
+        value: '1'
+        state: present
+        sysctl_set: true
+        reload: true
+      loop:
+        - net.bridge.bridge-nf-call-iptables
+        - net.ipv4.ip_forward
+        - net.bridge.bridge-nf-call-ip6tables
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name: 'containerd'
+        state: present
+        update_cache: true
+
+    - name: Générer la configuration containerd par défaut
+      ansible.builtin.shell:
+        cmd: containerd config default
+      register: containerd_config
+      changed_when: false
+
+    - name: Créer le fichier de configuration containerd
+      ansible.builtin.copy:
+        content: '{{ containerd_config.stdout }}'
+        dest: /etc/containerd/config.toml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Set SystemdCgroup to true
+      ansible.builtin.replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+
+    - name: Restart and enable containerd
+      ansible.builtin.systemd:
         name: containerd
         state: restarted
         enabled: true
-      tags: install
 
-- name: Setup Kubernetes controller
+    - name: Ensure /etc/apt/keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download and add the Kubernetes signing key
+      ansible.builtin.get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: '0644'
+
+    - name: Add the Kubernetes apt repository
+      ansible.builtin.apt_repository:
+        repo: deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /
+        filename: kubernetes.list
+        state: present
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name: '{{ item }}'
+        state: present
+        update_cache: true
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Hold packages
+      ansible.builtin.dpkg_selections:
+        name: '{{ item }}'
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+- name: Initialize cluster
   hosts: controller
   become: true
+  gather_facts: false
   tasks:
-    - name: Pull kubeadm required images
-      ansible.builtin.command: sudo kubeadm config images pull
-      tags: setup_controller
-    - name: Initialize Kubernetes master
-      ansible.builtin.command: sudo kubeadm init --pod-network-cidr=10.244.0.0/16
-      tags: setup_controller
-    - name: Create directory for kube config
-      ansible.builtin.file:
-        path: /home/fedora/.kube
-        state: directory
-        owner: 'fedora'
-        group: 'fedora'
+    - name: Wait for controller to be ready
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: 300
+
+    - name: Create kubeadm config file
+      ansible.builtin.copy:
+        dest: /root/kubeadm-config.yaml
+        content: |
+          apiVersion: kubeadm.k8s.io/v1beta3
+          kind: InitConfiguration
+          ---
+          apiVersion: kubeadm.k8s.io/v1beta3
+          kind: ClusterConfiguration
+          kubernetesVersion: "1.28.0"
+          ---
+          apiVersion: kubelet.config.k8s.io/v1beta1
+          kind: KubeletConfiguration
+        owner: root
+        group: root
         mode: '0644'
-    - name: Copy kube config file for regular user
+
+    - name: Initialize the cluster
+      ansible.builtin.shell:
+        cmd: kubeadm init --config /root/kubeadm-config.yaml
+      register: kubeadm_init
+      changed_when: false
+
+    - name: Create .kube for user's
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
+        mode: '0755'
+
+    - name: Copy kubeconfig to user's home directory
       ansible.builtin.copy:
         src: /etc/kubernetes/admin.conf
-        dest: /home/fedora/.kube/config_remote
-        owner: 'fedora'
-        group: 'fedora'
-        mode: '0644'
+        dest: /home/{{ ansible_user }}/.kube/config
         remote_src: true
-      tags: setup_controller
-    - name: Fetch kube config file
+        owner: '{{ ansible_user }}'
+        group: '{{ ansible_user }}'
+        mode: '0644'
+
+    - name: Fetch kubeconfig for local usage
       ansible.builtin.fetch:
         src: /etc/kubernetes/admin.conf
-        dest: ./kubeconfig
+        dest: ./kube.conf
         flat: true
-      tags: setup_controller
-    - name: Get join command
-      ansible.builtin.command: sudo kubeadm token create --print-join-command
-      register: join_command_raw
+
+    - name: Install Calico
+      ansible.builtin.shell:
+        cmd: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: calico_install
       changed_when: false
-      tags: setup_controller
+
+    - name: Get join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_command
+      changed_when: false
 
     - name: Set join command
       ansible.builtin.add_host:
         name: 'join_command'
-        commande: '{{ join_command_raw.stdout_lines[0] }}'
+        commande: '{{ join_command.stdout }}'
 
-- name: Setup Kubernetes worker
+- name: Setup kubernetes Worker nodes
   hosts: workers
   become: true
+  gather_facts: false
   tasks:
-      - name: Join cluster
-        ansible.builtin.shell: "sudo {{ hostvars['join_command']['commande'] }}"
-        tags: setup_worker
+    - name: Wait for workers's to be ready
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: 300
 
-# - name: Install FluxCD
-#   hosts: controller
-#   become: true
-#   tasks:
-#       - name: Download FluxCD installation script
-#         ansible.builtin.get_url:
-#             url: https://toolkit.fluxcd.io/install.sh
-#             dest: /tmp/install_flux.sh
-#             mode: '0755'
-#         tags: install
-#       - name: Install FluxCD
-#         ansible.builtin.shell: |
-#             set -eo pipefail
-#             if ! command -v flux >/dev/null; then
-#                 sudo /tmp/install_flux.sh
-#             fi
-#         tags: install
-#         register: flux_install_result
-#         changed_when: '"CHANGED" in flux_install_result.stdout'
-#       - name: Set up FluxCD
-#         ansible.builtin.shell: |
-#           flux bootstrap github \
-#           --owner=ffirehub \
-#           --repository=cloud-cadavre-exquis \
-#           --branch=master \
-#           --path=helm \
-#           --token=
-#         register: flux_setup_result
-#         changed_when: flux_setup_result.rc == 0
-#         tags: install
+    - name: Join the cluster
+      ansible.builtin.shell: "{{ hostvars['join_command']['commande'] }}"
+      changed_when: false

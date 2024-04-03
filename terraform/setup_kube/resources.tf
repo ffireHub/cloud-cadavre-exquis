@@ -7,7 +7,7 @@ resource "tls_private_key" "private_key" {
 }
 
 # registers private key in ssh-agent
-resource null_resource "register_ssh_private_key" {
+resource "null_resource" "register_ssh_private_key" {
   triggers = {
     key = base64sha256(tls_private_key.private_key.private_key_pem)
   }
@@ -106,18 +106,34 @@ resource "openstack_networking_secgroup_rule_v2" "NodePort_Services" {
   security_group_id = openstack_networking_secgroup_v2.kube_secgroup_worker.id
 }
 
+###
+# Prepare file for ansible
+###
+
+resource "null_resource" "prepapre_ansible" {
+
+  provisioner "local-exec" {
+    command = "echo '[controller]' > /tmp/controller_ips"
+  }
+
+  provisioner "local-exec" {
+    command = "echo '[workers]' > /tmp/worker_ips"
+  }
+
+}
+
 
 ###
 # Create the VM
 ###
 
 resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
-  name        = "controller"
-  provider    = openstack.ovh
-  image_id    = "13beb57f-325b-4542-811d-bdeff2a9dc29"
-  flavor_name = "c3-4"
-  key_pair    = openstack_compute_keypair_v2.keypair.name
-  user_data = <<-EOF
+  name            = "k8s-master"
+  provider        = openstack.ovh
+  image_id        = "13beb57f-325b-4542-811d-bdeff2a9dc29"
+  flavor_name     = "c3-4"
+  key_pair        = openstack_compute_keypair_v2.keypair.name
+  user_data       = <<-EOF
     #!/bin/bash
     echo "${join("\n", var.ssh_public_keys)}" > /tmp/authorized_keys
     sudo mv /tmp/authorized_keys /home/debian/.ssh/authorized_keys
@@ -138,21 +154,20 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
   }
 
   provisioner "local-exec" {
-    command =  <<-EOF
+    command = <<-EOF
       export CONTROLLER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_controller.network.0.fixed_ip_v4}
-      echo "[controller]" > /tmp/controller_ips
       echo $CONTROLLER_IPS >> /tmp/controller_ips
       EOF
   }
 }
 
 resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
-  name        = "worker1"
+  name        = "k8s-worker01"
   provider    = openstack.ovh
   image_id    = "13beb57f-325b-4542-811d-bdeff2a9dc29"
   flavor_name = "r3-16"
   key_pair    = openstack_compute_keypair_v2.keypair.name
-  user_data = <<-EOF
+  user_data   = <<-EOF
     #!/bin/bash
     echo "${join("\n", var.ssh_public_keys)}" > /tmp/authorized_keys
     sudo mv /tmp/authorized_keys /home/debian/.ssh/authorized_keys
@@ -160,6 +175,7 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
     sudo chmod 600 /home/debian/.ssh/authorized_keys
     echo "###" > /tmp/authorized_keys
   EOF
+
   security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup_worker.name]
   network {
     uuid = "6011fbc9-4cbf-46a4-8452-6890a340b60b"
@@ -173,24 +189,18 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
     host        = self.floating_ip
   }
   provisioner "local-exec" {
-    command =  <<-EOF
+    command = <<-EOF
       export WORKER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_worker.network.0.fixed_ip_v4}
-      echo "[workers]" > /tmp/worker_ips
       echo $WORKER_IPS >> /tmp/worker_ips
       EOF
   }
 }
 
 
-# resource "null_resource" "ansible_provisioning" {
-#  depends_on = [openstack_compute_instance_v2.OVH_in_Fire_controller, openstack_compute_instance_v2.OVH_in_Fire_worker]
+resource "null_resource" "ansible_provisioning" {
+ depends_on = [openstack_compute_instance_v2.OVH_in_Fire_controller, openstack_compute_instance_v2.OVH_in_Fire_worker]
 
-#  triggers = {
-#    controller_id = openstack_compute_instance_v2.OVH_in_Fire_controller.id
-#    worker_id = openstack_compute_instance_v2.OVH_in_Fire_worker.id
-#  }
-
-#  provisioner "local-exec" {
-#    command = "ansible-playbook -u debian -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
-#  }
-# }
+ provisioner "local-exec" {
+   command = "ansible-playbook -u debian -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
+ }
+}
