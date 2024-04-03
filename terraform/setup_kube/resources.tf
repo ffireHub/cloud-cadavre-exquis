@@ -11,13 +11,6 @@ resource null_resource "register_ssh_private_key" {
   triggers = {
     key = base64sha256(tls_private_key.private_key.private_key_pem)
   }
-
-  # provisioner "local-exec" {
-  #   command = "bash -c 'echo \"${tls_private_key.private_key.private_key_pem}\" > ./ovh.pkey'"
-  #   environment = {
-  #     KEY = base64encode(tls_private_key.private_key.private_key_pem)
-  #   }
-  # }
 }
 
 # Keypair which will be used on nodes and bastion
@@ -121,15 +114,15 @@ resource "openstack_networking_secgroup_rule_v2" "NodePort_Services" {
 resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
   name        = "controller"
   provider    = openstack.ovh
-  image_name  = "Fedora 38"
+  image_id    = "13beb57f-325b-4542-811d-bdeff2a9dc29"
   flavor_name = "c3-4"
   key_pair    = openstack_compute_keypair_v2.keypair.name
   user_data = <<-EOF
     #!/bin/bash
     echo "${join("\n", var.ssh_public_keys)}" > /tmp/authorized_keys
-    sudo mv /tmp/authorized_keys /home/fedora/.ssh/authorized_keys
-    sudo chown fedora:fedora /home/fedora/.ssh/authorized_keys
-    sudo chmod 600 /home/fedora/.ssh/authorized_keys
+    sudo mv /tmp/authorized_keys /home/debian/.ssh/authorized_keys
+    sudo chown debian:debian /home/debian/.ssh/authorized_keys
+    sudo chmod 600 /home/debian/.ssh/authorized_keys
     echo "###" > /tmp/authorized_keys
   EOF
   security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup_controller.name]
@@ -139,7 +132,7 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
   }
   connection {
     type        = "ssh"
-    user        = "fedora"
+    user        = "debian"
     private_key = tls_private_key.private_key.private_key_pem
     host        = self.floating_ip
   }
@@ -156,15 +149,15 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
 resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
   name        = "worker1"
   provider    = openstack.ovh
-  image_name  = "Fedora 38"
+  image_id    = "13beb57f-325b-4542-811d-bdeff2a9dc29"
   flavor_name = "r3-16"
   key_pair    = openstack_compute_keypair_v2.keypair.name
   user_data = <<-EOF
     #!/bin/bash
     echo "${join("\n", var.ssh_public_keys)}" > /tmp/authorized_keys
-    sudo mv /tmp/authorized_keys /home/fedora/.ssh/authorized_keys
-    sudo chown fedora:fedora /home/fedora/.ssh/authorized_keys
-    sudo chmod 600 /home/fedora/.ssh/authorized_keys
+    sudo mv /tmp/authorized_keys /home/debian/.ssh/authorized_keys
+    sudo chown debian:debian /home/debian/.ssh/authorized_keys
+    sudo chmod 600 /home/debian/.ssh/authorized_keys
     echo "###" > /tmp/authorized_keys
   EOF
   security_groups = ["default", openstack_networking_secgroup_v2.kube_secgroup_worker.name]
@@ -175,7 +168,7 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
 
   connection {
     type        = "ssh"
-    user        = "fedora"
+    user        = "debian"
     private_key = tls_private_key.private_key.private_key_pem
     host        = self.floating_ip
   }
@@ -189,16 +182,15 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
 }
 
 
-resource "null_resource" "ansible_provisioning" {
- depends_on = [openstack_compute_instance_v2.OVH_in_Fire_controller, openstack_compute_instance_v2.OVH_in_Fire_worker]
+# resource "null_resource" "ansible_provisioning" {
+#  depends_on = [openstack_compute_instance_v2.OVH_in_Fire_controller, openstack_compute_instance_v2.OVH_in_Fire_worker]
 
- triggers = {
-   controller_id = openstack_compute_instance_v2.OVH_in_Fire_controller.id
-   worker_id = openstack_compute_instance_v2.OVH_in_Fire_worker.id
- }
+#  triggers = {
+#    controller_id = openstack_compute_instance_v2.OVH_in_Fire_controller.id
+#    worker_id = openstack_compute_instance_v2.OVH_in_Fire_worker.id
+#  }
 
- provisioner "local-exec" {
-   command = "ansible-playbook -u fedora -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
- }
-}
-
+#  provisioner "local-exec" {
+#    command = "ansible-playbook -u debian -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
+#  }
+# }
