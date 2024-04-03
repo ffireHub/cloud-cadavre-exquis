@@ -13,5 +13,3 @@ resource "flux_bootstrap_git" "this" {
   depends_on = [github_repository_deploy_key.this]
   path       = "clusters/flux-e2e"
 }
-
-// terraform apply -var "github_org=<username or org>" -var "github_token=<token>" -var "github_repository=fleet-infra"

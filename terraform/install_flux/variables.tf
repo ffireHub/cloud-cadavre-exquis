@@ -10,3 +10,7 @@ variable "github_org" {
 variable "github_repository" {
   type = string
 }
+
+variable "kubeconfig_path" {
+  type = string
+}
