@@ -5,13 +5,7 @@ dispatcher:
     name: cloud-cadavre-exquis-dispatcher
     tag: 1.0-SNAPSHOT
   domain: cadavre-exquis.kube
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "250m"
-    limits:
-      memory: "128Mi"
-      cpu: "500m"
+
 
 
 register:
@@ -20,13 +14,7 @@ register:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-register
     tag: 1.0-SNAPSHOT
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "250m"
-    limits:
-      memory: "128Mi"
-      cpu: "500m"
+
 
 subject:
   replica: 2
@@ -34,13 +22,7 @@ subject:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
     tag: 1.0-SNAPSHOT
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "250m"
-    limits:
-      memory: "128Mi"
-      cpu: "500m"
+
 
 verb:
   replica: 2
@@ -48,16 +30,10 @@ verb:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
     tag: 1.0-SNAPSHOT
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "250m"
-    limits:
-      memory: "128Mi"
-      cpu: "500m"
+
 
 adjective:
-  replica: 2
+  replica: 3
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
