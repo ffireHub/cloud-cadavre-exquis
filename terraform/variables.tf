@@ -28,3 +28,13 @@ variable "instance" {
     image_id = "13beb57f-325b-4542-811d-bdeff2a9dc29"
   }]
 }
+
+variable "GITHUB_ORG" {
+    type = string
+    default = "ffirehub"
+}
+variable "GITHUB_REPOSITORY" {
+    type = string
+    # default = "cloud-cadavre-exquis"
+    default = "repo-test-for-flux"
+}
