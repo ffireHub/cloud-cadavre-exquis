@@ -36,5 +36,5 @@ variable "GITHUB_ORG" {
 variable "GITHUB_REPOSITORY" {
     type = string
     # default = "cloud-cadavre-exquis"
-    default = "repo-test-for-flux"
+    default = "cloud-cadavre-exquis"
 }
