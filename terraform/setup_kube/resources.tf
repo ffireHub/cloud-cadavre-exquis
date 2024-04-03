@@ -127,11 +127,18 @@ resource "null_resource" "prepapre_ansible" {
 # Create the VM
 ###
 
+locals {
+  controllers = { for i in var.instance : i.name => i if i.server_type == "controller" }
+  workers     = { for i in var.instance : i.name => i if i.server_type == "worker" }
+}
+
 resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
-  name            = "k8s-master"
+  for_each = local.controllers
+
+  name            = each.value.name
   provider        = openstack.ovh
-  image_id        = "13beb57f-325b-4542-811d-bdeff2a9dc29"
-  flavor_name     = "c3-4"
+  image_id        = each.value.image_id
+  flavor_name     = each.value.flavor_name
   key_pair        = openstack_compute_keypair_v2.keypair.name
   user_data       = <<-EOF
     #!/bin/bash
@@ -153,19 +160,21 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
     host        = self.floating_ip
   }
 
-  provisioner "local-exec" {
-    command = <<-EOF
-      export CONTROLLER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_controller.network.0.fixed_ip_v4}
-      echo $CONTROLLER_IPS >> /tmp/controller_ips
-      EOF
-  }
+  # provisioner "local-exec" {
+  #   command = <<-EOF
+  #     export CONTROLLER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_controller.network.0.fixed_ip_v4}
+  #     echo $CONTROLLER_IPS >> /tmp/controller_ips
+  #     EOF
+  # }
 }
 
 resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
-  name        = "k8s-worker01"
+  for_each = local.workers
+  
+  name        = each.value.name
   provider    = openstack.ovh
-  image_id    = "13beb57f-325b-4542-811d-bdeff2a9dc29"
-  flavor_name = "r3-16"
+  image_id    = each.value.image_id
+  flavor_name = each.value.flavor_name
   key_pair    = openstack_compute_keypair_v2.keypair.name
   user_data   = <<-EOF
     #!/bin/bash
@@ -188,11 +197,29 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
     private_key = tls_private_key.private_key.private_key_pem
     host        = self.floating_ip
   }
+  # provisioner "local-exec" {
+  #   command = <<-EOF
+  #     export WORKER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_worker.network.0.fixed_ip_v4}
+  #     echo $WORKER_IPS >> /tmp/worker_ips
+  #     EOF
+  # }
+}
+
+resource "null_resource" "load_wokers_ips" {
+  triggers = {
+    worker_ips = join("\n", [for w in openstack_compute_instance_v2.OVH_in_Fire_worker : w.network.0.fixed_ip_v4])
+  }
   provisioner "local-exec" {
-    command = <<-EOF
-      export WORKER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_worker.network.0.fixed_ip_v4}
-      echo $WORKER_IPS >> /tmp/worker_ips
-      EOF
+    command = "echo '${self.triggers.worker_ips}' >> /tmp/worker_ips"
+  }
+}
+
+resource "null_resource" "load_controller_ips" {
+  triggers = {
+    controller_ips = join("\n", [for c in openstack_compute_instance_v2.OVH_in_Fire_controller : c.network.0.fixed_ip_v4])
+  }
+  provisioner "local-exec" {
+    command = "echo '${self.triggers.controller_ips}' >> /tmp/controller_ips"
   }
 }
 
