@@ -14,7 +14,7 @@ We use Terraform to manage SSH key pairs across both OpenStack and OVH APIs. Thi
 
 Security groups are used to control access to resources within our cloud environments. Terraform helps us define and manage these groups to ensure that only authorized traffic can access our resources, enhancing the security of our deployments.
 
-#### openstack_compute_instance_v2 "Fedora 38"
+#### openstack_compute_instance_v2 "Debian 12"
 
 We utilize Terraform to provision OpenStack compute instances. For our deployments, we have chosen Fedora 38 for its cutting-edge features and robust community support. Terraform allows us to automate the deployment of these instances, ensuring consistency and reliability across our infrastructure.
 
@@ -53,11 +53,3 @@ Kubelet is an agent that runs on each node in the cluster. It ensures that conta
 ### Fluxcd
 
 FluxCD is a set of continuous and progressive delivery solutions for Kubernetes that are open and extensible. It allows us to automate the deployment of applications to our Kubernetes cluster based on configurations stored in Git repositories.
-
-#### gotk-components.yal & gotk-sync.yaml & kustomization
-
-gotk-components.yaml: This file contains the definitions for all the GitOps Toolkit (FluxCD) components required for the setup.
-
-gotk-sync.yaml: Defines the GitRepository and Kustomization resources, telling FluxCD where to find the Kubernetes manifests in the Git repository and how to apply them.
-
-kustomization: Used to customize the configuration before applying it, allowing us to modify configurations per environment or specific needs without changing the base manifests.
