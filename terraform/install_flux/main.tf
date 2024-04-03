@@ -1,7 +1,6 @@
-resource "helm_release" "this" {
-  repository       = "https://fluxcd-community.github.io/helm-charts"
-  chart            = "flux2"
-  name             = "flux2"
-  namespace        = "flux-system"
-  create_namespace = true
+module "flux" {
+  source  = "./module"
+  github_repository = var.github_repository
+  github_org = var.github_org
+  github_token = var.github_token
 }

@@ -7,4 +7,7 @@ module "Install_instance_and_kube" {
 
 module "Install_flux" {
   source = "./install_flux"
+  github_token = var.GITHUB_TOKEN
+  github_org = var.GITHUB_ORG
+  github_repository = var.GITHUB_REPOSITORY
 }
