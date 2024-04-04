@@ -159,13 +159,6 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_controller" {
     private_key = tls_private_key.private_key.private_key_pem
     host        = self.floating_ip
   }
-
-  # provisioner "local-exec" {
-  #   command = <<-EOF
-  #     export CONTROLLER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_controller.network.0.fixed_ip_v4}
-  #     echo $CONTROLLER_IPS >> /tmp/controller_ips
-  #     EOF
-  # }
 }
 
 resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
@@ -197,12 +190,6 @@ resource "openstack_compute_instance_v2" "OVH_in_Fire_worker" {
     private_key = tls_private_key.private_key.private_key_pem
     host        = self.floating_ip
   }
-  # provisioner "local-exec" {
-  #   command = <<-EOF
-  #     export WORKER_IPS=${openstack_compute_instance_v2.OVH_in_Fire_worker.network.0.fixed_ip_v4}
-  #     echo $WORKER_IPS >> /tmp/worker_ips
-  #     EOF
-  # }
 }
 
 resource "null_resource" "load_wokers_ips" {
