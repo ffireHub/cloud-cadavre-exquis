@@ -9,6 +9,10 @@ terraform {
       source  = "integrations/github"
       version = ">=5.18.0"
     }
+    kubectl = {
+      source = "gavinbunney/kubectl"
+      version = "1.14.0"
+    }
   }
 }
 
@@ -29,4 +33,8 @@ provider "flux" {
       private_key = tls_private_key.flux.private_key_pem
     }
   }
+}
+
+provider "kubectl" {
+  config_path = var.kubeconfig_path
 }
