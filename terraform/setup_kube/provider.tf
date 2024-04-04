@@ -13,7 +13,12 @@ provider "ovh" {
   consumer_key       = var.OS_CONSUMER_KEY
 }
 
+provider "helm" {
+  kubernetes {
+    config_path = local.kube_path
+  }
+}
+
 provider "kubernetes" {
-  alias = "kubernetes"
-  config_path = "./kubeconfig"
+  config_path = local.kube_path
 }

@@ -232,7 +232,24 @@ resource "null_resource" "ansible_provisioning" {
  }
 }
 
+locals {
+  kube_path = "./kube.conf"
+}
+
 output "cluster_ready_marker" {
   depends_on = [ null_resource.ansible_provisioning ]
-  value = "./kube.conf"
+  value = "${local.kube_path}"
+}
+
+resource "kubernetes_namespace" "traefik" {
+  metadata {
+    name = "traefik"
+  }
+}
+
+resource "helm_release" "traefik" {
+  name = "traefik"
+  repository = "https://traefik.github.io/charts"
+  chart = "traefik"
+  namespace = kubernetes_namespace.traefik.metadata[0].name
 }

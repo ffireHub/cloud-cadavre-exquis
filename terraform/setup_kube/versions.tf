@@ -24,5 +24,13 @@ required_version    = ">= 0.14.0" # Takes into account Terraform versions from 0
       source  = "hashicorp/null"
       version = ">= 3.1.0"
     }
+    helm = {
+      source = "hashicorp/helm"
+      version = "2.12.1"
+    }
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+      version = "2.27.0"
+    }
   }
 }
