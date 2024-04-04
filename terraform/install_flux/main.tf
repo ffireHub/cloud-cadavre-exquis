@@ -18,10 +18,10 @@ resource "flux_bootstrap_git" "this" {
 
 resource "kubectl_manifest" "create_helmRepo" {
   depends_on = [ flux_bootstrap_git.this ]
-  yaml_body  = file("${path.module}/../../helmRepo.yaml")
+  yaml_body  = file("${path.module}/../../release/helmRepo.yaml")
 }
 
 resource "kubectl_manifest" "create_helmRelease" {
   depends_on = [ kubectl_manifest.create_helmRepo ]
-  yaml_body  = file("${path.module}/../../helmRelease.yaml")
+  yaml_body  = file("${path.module}/../../release/helmRelease.yaml")
 }
