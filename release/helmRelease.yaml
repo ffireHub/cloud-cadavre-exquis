@@ -13,7 +13,8 @@ spec:
       version: '6.5.*'
       sourceRef:
         kind: HelmRepository
-        name: helm
+        name: cadavre-exquis
+        namespace: flux-system
       interval: 1m
   releaseName: cadavre-exquis-release
   install:
