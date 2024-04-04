@@ -3,7 +3,7 @@ dispatcher:
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-dispatcher
-    tag: 1.0-SNAPSHOT
+    tag: 1.0
   domain: cadavre-exquis.kube
 
 
@@ -13,7 +13,7 @@ register:
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-register
-    tag: 1.0-SNAPSHOT
+    tag: 1.0
 
 
 subject:
@@ -21,7 +21,7 @@ subject:
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
-    tag: 1.0-SNAPSHOT
+    tag: 1.0
 
 
 verb:
@@ -29,7 +29,7 @@ verb:
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
-    tag: 1.0-SNAPSHOT
+    tag: 1.0
 
 
 adjective:
@@ -37,7 +37,7 @@ adjective:
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
-    tag: 1.0-SNAPSHOT
+    tag: 1.0
 
 postgresql:
   architecture: replication
