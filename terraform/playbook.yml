@@ -181,6 +181,14 @@
       register: calico_install
       changed_when: false
 
+    - name: Install ingress-nginx
+      ansible.builtin.shell:
+        cmd: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.49.0/deploy/static/provider/baremetal/deploy.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: ingress_install
+      changed_when: false
+
     - name: Get join command
       ansible.builtin.command: kubeadm token create --print-join-command
       register: join_command
