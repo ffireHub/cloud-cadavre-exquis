@@ -13,3 +13,8 @@ module "Install_flux" {
   github_repository = var.GITHUB_REPOSITORY
   kubeconfig_path = module.Install_instance_and_kube.cluster_ready_marker
 }
+
+module "Install_monitoring" {
+  source = "./monitoring"
+  kubeconfig_path = module.Install_instance_and_kube.cluster_ready_marker
+}
