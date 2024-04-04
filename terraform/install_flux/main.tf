@@ -9,7 +9,19 @@ resource "github_repository_deploy_key" "this" {
   read_only  = "false"
 }
 
+
 resource "flux_bootstrap_git" "this" {
   depends_on = [github_repository_deploy_key.this]
-  path       = "clusters/flux-e2e"
+
+  path = "./"
+}
+
+resource "kubectl_manifest" "create_helmRepo" {
+  depends_on = [ flux_bootstrap_git.this ]
+  yaml_body  = file("${path.module}/../../helmRepo.yaml")
+}
+
+resource "kubectl_manifest" "create_helmRelease" {
+  depends_on = [ kubectl_manifest.create_helmRepo ]
+  yaml_body  = file("${path.module}/../../helmRelease.yaml")
 }
