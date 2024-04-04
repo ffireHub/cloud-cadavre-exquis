@@ -6,4 +6,4 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: https://github.com/ffireHub/cloud-cadavre-exquis/helm
+  url: https://ffirehub.github.io/cloud-cadavre-exquis/helm-charts/
