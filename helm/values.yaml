@@ -17,7 +17,7 @@ register:
 
 
 subject:
-  replica: 2
+  replica: 3
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
@@ -25,7 +25,7 @@ subject:
 
 
 verb:
-  replica: 2
+  replica: 3
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
@@ -33,7 +33,7 @@ verb:
 
 
 adjective:
-  replica: 3
+  replica: 4
   image:
     repository: docker.io/fteychene
     name: cloud-cadavre-exquis-provider
