@@ -210,9 +210,15 @@ resource "null_resource" "load_controller_ips" {
   }
 }
 
+resource "null_resource" "install_ansible_collections" {
+  depends_on = [openstack_compute_instance_v2.OVH_in_Fire_controller, openstack_compute_instance_v2.OVH_in_Fire_worker]
+  provisioner "local-exec" {
+    command = "ansible-galaxy collection install community.kubernetes"
+  }
+}
 
 resource "null_resource" "ansible_provisioning" {
- depends_on = [openstack_compute_instance_v2.OVH_in_Fire_controller, openstack_compute_instance_v2.OVH_in_Fire_worker]
+  depends_on = [null_resource.install_ansible_collections]
 
  provisioner "local-exec" {
    command = "ansible-playbook -u debian -i /tmp/worker_ips -i /tmp/controller_ips ./playbook.yml"
