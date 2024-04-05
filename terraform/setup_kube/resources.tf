@@ -228,19 +228,3 @@ output "cluster_ready_marker" {
   depends_on = [ null_resource.ansible_provisioning ]
   value = "${local.kube_path}"
 }
-
-resource "helm_release" "traefik" {
-  name       = "traefik-ingress-controller"
-  repository = "https://helm.traefik.io/traefik"
-  chart      = "traefik"
-  namespace  = "kube-system"
-
-  set {
-    name  = "service.type"
-    value = "LoadBalancer"
-  }
-
-  depends_on = [
-    null_resource.ansible_provisioning
-  ]
-}
