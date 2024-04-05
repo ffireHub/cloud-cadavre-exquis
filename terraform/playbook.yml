@@ -98,6 +98,12 @@
         filename: kubernetes.list
         state: present
 
+    - name: Appliquer la StorageClass dans Kubernetes
+      community.kubernetes.k8s:
+        state: present
+        src: ./storageClass.yml
+        kubeconfig: /etc/kubernetes/admin.conf
+
     - name: Add Helm signing key
       ansible.builtin.get_url:
         url: https://baltocdn.com/helm/signing.asc

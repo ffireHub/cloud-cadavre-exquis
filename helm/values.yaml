@@ -44,6 +44,10 @@ postgresql:
   database: "cadavre"
   auth:
     postgresPassword: "postgres"
+  persistence:
+    enabled: true
+    storageClass: "csi-cinder-high-speed"
+    size: 8Gi
 
 hooks:
   pre-install:
