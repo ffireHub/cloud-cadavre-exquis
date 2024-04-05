@@ -327,8 +327,8 @@
           grafana:
             service:
               type: LoadBalancer
-        kubeconfig: /etc/kubernetes/admin.conf
-
+        kubeconfig: "/etc/kubernetes/admin.conf"
+        
     - name: Install cadavre-exquis-release
       kubernetes.core.helm:
         release_name: cadavre-exquis-release
@@ -337,3 +337,6 @@
         release_namespace: cloud
         create_namespace: true
         kubeconfig: /etc/kubernetes/admin.conf
+        values:
+          dispatcher:
+            domain: "cadavre-exquis.local"
