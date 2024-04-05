@@ -18,6 +18,22 @@
         regexp: '^/swapfile'
         state: absent
 
+    - name: Ensure the directory data exists with 777 permissions
+      ansible.builtin.file:
+        path: /mnt/data
+        state: directory
+        mode: '0777'
+    - name: Ensure the directory primary exists with 777 permissions
+      ansible.builtin.file:
+        path: /mnt/data/primary
+        state: directory
+        mode: '0777'
+    - name: Ensure the directory read exists with 777 permissions
+      ansible.builtin.file:
+        path: /mnt/data/read
+        state: directory
+        mode: '0777'
+
     - name: Ensure the overlay and br_netfilter modules are loaded at boot
       ansible.builtin.copy:
         content: |
@@ -211,15 +227,26 @@
         group: '{{ ansible_user }}'
         mode: '0644'
 
-    - name: Copy storageClass.yml to remote
+    - name: Copy pvc1.yml to remote
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/storageClass.yml"
-        dest: "/tmp/storageClass.yml"
+        src: "{{ playbook_dir }}/pvc1.yml"
+        dest: "/tmp/pvc1.yml"
 
-    - name: Apply the storage class
+    - name: Apply the pvc1
       kubernetes.core.k8s:
         state: present
-        src: "/tmp/storageClass.yml"
+        src: "/tmp/pvc1.yml"
+        kubeconfig: "/etc/kubernetes/admin.conf"
+
+    - name: Copy pvc2.yml to remote
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/pvc2.yml"
+        dest: "/tmp/pvc2.yml"
+
+    - name: Apply the pvc2
+      kubernetes.core.k8s:
+        state: present
+        src: "/tmp/pvc2.yml"
         kubeconfig: "/etc/kubernetes/admin.conf"
 
     - name: Fetch kubeconfig for local usage
