@@ -98,6 +98,18 @@
         filename: kubernetes.list
         state: present
 
+    - name: Add Helm signing key
+      ansible.builtin.get_url:
+        url: https://baltocdn.com/helm/signing.asc
+        dest: /usr/share/keyrings/helm.asc
+        mode: '0644'
+
+    - name: Add Helm apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/helm.asc] https://baltocdn.com/helm/stable/debian/ all main"
+        filename: helm-stable-debian.list
+        state: present
+
     - name: Install packages
       ansible.builtin.apt:
         name: '{{ item }}'
@@ -107,6 +119,7 @@
         - kubelet
         - kubeadm
         - kubectl
+        - helm
 
     - name: Hold packages
       ansible.builtin.dpkg_selections:
@@ -181,13 +194,26 @@
       register: calico_install
       changed_when: false
 
-    - name: Install ingress-nginx
-      ansible.builtin.shell:
-        cmd: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.49.0/deploy/static/provider/baremetal/deploy.yaml
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: ingress_install
-      changed_when: false
+    - name: Install ingress controller traefik
+      kubernetes.core.helm:
+        release_name: traefik
+        chart_ref: traefik
+        chart_repo_url: https://helm.traefik.io/traefik
+        release_namespace: traefik-ingress
+        create_namespace: true
+        values:
+          globalArguments:
+          deployment:
+            kind: DaemonSet
+          providers:
+            kubernetesCRD:
+              enabled: true
+          service:
+            type: LoadBalancer
+          ingressRoute:
+            dashboard:
+              enabled: false
+        kubeconfig: /etc/kubernetes/admin.conf
 
     - name: Get join command
       ansible.builtin.command: kubeadm token create --print-join-command
@@ -212,3 +238,24 @@
     - name: Join the cluster
       ansible.builtin.shell: "{{ hostvars['join_command']['commande'] }}"
       changed_when: false
+
+- name: Add monitoring
+  hosts: controller
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install prometheus monitoring
+      kubernetes.core.helm:
+        release_name: prometheus
+        chart_ref: kube-prometheus-stack
+        chart_repo_url: https://prometheus-community.github.io/helm-charts
+        release_namespace: prometheus
+        create_namespace: true
+        values:
+          prometheus:
+            service:
+              type: LoadBalancer
+          grafana:
+            service:
+              type: LoadBalancer
+        kubeconfig: /etc/kubernetes/admin.conf
