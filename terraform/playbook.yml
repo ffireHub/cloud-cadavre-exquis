@@ -106,7 +106,7 @@
 
     - name: Add Helm apt repository
       ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/helm.asc] https://baltocdn.com/helm/stable/debian/ all main"
+        repo: 'deb [signed-by=/usr/share/keyrings/helm.asc] https://baltocdn.com/helm/stable/debian/ all main'
         filename: helm-stable-debian.list
         state: present
 
@@ -258,4 +258,13 @@
           grafana:
             service:
               type: LoadBalancer
+        kubeconfig: /etc/kubernetes/admin.conf
+
+    - name: Install cadavre-exquis-release
+      kubernetes.core.helm:
+        release_name: cadavre-exquis-release
+        chart_ref: fteychene-cadavre-exquis
+        chart_repo_url: https://ffireHub.github.io/cloud-cadavre-exquis/helm/
+        release_namespace: cloud
+        create_namespace: true
         kubeconfig: /etc/kubernetes/admin.conf

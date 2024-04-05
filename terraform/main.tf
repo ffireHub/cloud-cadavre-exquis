@@ -6,10 +6,10 @@ module "Install_instance_and_kube" {
   OS_CONSUMER_KEY = var.OS_CONSUMER_KEY
 }
 
-module "Install_flux" {
-  source = "./install_flux"
-  github_token = var.GITHUB_TOKEN
-  github_org = var.GITHUB_ORG
-  github_repository = var.GITHUB_REPOSITORY
-  kubeconfig_path = module.Install_instance_and_kube.cluster_ready_marker
-}
+# module "Install_flux" {
+#   source = "./install_flux"
+#   github_token = var.GITHUB_TOKEN
+#   github_org = var.GITHUB_ORG
+#   github_repository = var.GITHUB_REPOSITORY
+#   kubeconfig_path = module.Install_instance_and_kube.cluster_ready_marker
+# }
