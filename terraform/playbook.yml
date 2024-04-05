@@ -98,11 +98,36 @@
         filename: kubernetes.list
         state: present
 
-    - name: Apply the storage class
-      community.kubernetes.k8s:
+    - name: Ensure Python 3 and pip are installed
+      ansible.builtin.apt:
+        name: 
+          - python3
+          - python3-pip
         state: present
-        src: ./storageClass.yml
-        kubeconfig: /etc/kubernetes/admin.conf
+        update_cache: true
+
+    - name: Ensure pipx is installed
+      ansible.builtin.apt:
+        name: pipx
+        state: present
+
+    - name: Initialize pipx to ensure its environment is ready
+      ansible.builtin.command: pipx ensurepath
+
+    - name: Install virtualenv using pipx
+      ansible.builtin.command: pipx install virtualenv
+
+    - name: Create a virtual environment for Kubernetes Python client
+      ansible.builtin.shell:
+        cmd: python3 -m venv ~/k8s-venv
+
+    - name: Activate the virtual environment and install Kubernetes Python client
+      ansible.builtin.shell:
+        cmd: ~/k8s-venv/bin/pip install kubernetes
+
+    - name: Use virtual environment for Kubernetes tasks
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "~/k8s-venv/bin/python"
 
     - name: Add Helm signing key
       ansible.builtin.get_url:
@@ -185,6 +210,17 @@
         owner: '{{ ansible_user }}'
         group: '{{ ansible_user }}'
         mode: '0644'
+
+    - name: Copy storageClass.yml to remote
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/storageClass.yml"
+        dest: "/tmp/storageClass.yml"
+
+    - name: Apply the storage class
+      kubernetes.core.k8s:
+        state: present
+        src: "/tmp/storageClass.yml"
+        kubeconfig: "/etc/kubernetes/admin.conf"
 
     - name: Fetch kubeconfig for local usage
       ansible.builtin.fetch:
