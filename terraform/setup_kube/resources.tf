@@ -234,6 +234,7 @@ resource "null_resource" "ansible_provisioning" {
 
 locals {
   kube_path = "./kube.conf"
+  depends_on = [null_resource.ansible_provisioning]
 }
 
 output "cluster_ready_marker" {
@@ -241,15 +242,18 @@ output "cluster_ready_marker" {
   value = "${local.kube_path}"
 }
 
-resource "kubernetes_namespace" "traefik" {
-  metadata {
-    name = "traefik"
-  }
-}
-
 resource "helm_release" "traefik" {
-  name = "traefik"
-  repository = "https://traefik.github.io/charts"
-  chart = "traefik"
-  namespace = kubernetes_namespace.traefik.metadata[0].name
+  name       = "traefik-ingress-controller"
+  repository = "https://helm.traefik.io/traefik"
+  chart      = "traefik"
+  namespace  = "kube-system"
+
+  set {
+    name  = "service.type"
+    value = "LoadBalancer"
+  }
+
+  depends_on = [
+    null_resource.ansible_provisioning
+  ]
 }
