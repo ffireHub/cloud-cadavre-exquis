@@ -2,13 +2,13 @@ apiVersion: v1
 entries:
   fteychene-cadavre-exquis:
   - apiVersion: v2
-    created: "2024-04-05T18:29:09.64099522+02:00"
+    created: "2024-04-06T17:24:12.699526065+02:00"
     dependencies:
     - alias: postgresql
       name: postgresql
       repository: https://charts.bitnami.com/bitnami
       version: 12.10.0
-    digest: a3bf2bbc60a425e7a85684662768ac60ed17d7bc2bbfd9ad2dc2f923733b9aaa
+    digest: 3a632bbf5d3cd4861d358fca9cdc6cb33931b79f2504ff7fe9bd7972d552e856
     name: fteychene-cadavre-exquis
     type: application
     urls:
@@ -27,7 +27,7 @@ entries:
       licenses: Apache-2.0
     apiVersion: v2
     appVersion: 15.4.0
-    created: "2024-04-05T18:29:09.643866445+02:00"
+    created: "2024-04-06T17:24:12.706172266+02:00"
     dependencies:
     - name: common
       repository: oci://registry-1.docker.io/bitnamicharts
@@ -56,4 +56,4 @@ entries:
     urls:
     - charts/postgresql-12.10.0.tgz
     version: 12.10.0
-generated: "2024-04-05T18:29:09.63766294+02:00"
+generated: "2024-04-06T17:24:12.691849805+02:00"
