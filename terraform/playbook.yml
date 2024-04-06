@@ -180,7 +180,6 @@
 - name: Initialize cluster
   hosts: controller
   become: true
-  gather_facts: false
   tasks:
     - name: Wait for controller to be ready
       ansible.builtin.wait_for_connection:
@@ -279,6 +278,10 @@
               enabled: true
           service:
             type: LoadBalancer
+            spec:
+              loadBalancerIP: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+              externalIPs:
+                - "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
           ingressRoute:
             dashboard:
               enabled: false
@@ -336,7 +339,7 @@
         chart_repo_url: https://ffireHub.github.io/cloud-cadavre-exquis/helm/
         release_namespace: cloud
         create_namespace: true
-        kubeconfig: /etc/kubernetes/admin.conf
+        kubeconfig: "/etc/kubernetes/admin.conf"
         values:
           dispatcher:
-            domain: "cadavre-exquis.local"
+            domain: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
