@@ -21,7 +21,22 @@ git clone https://github.com/ffireHub/cloud-cadavre-exquis.git
 
 ### Launching the deployment
 
+Move into the terraform folder inside the downloaded project. 
 
+Launch this command to initialize the Terraform working directory by creating initial files, loading remote state, download modules.
+```bash
+terraform init
+```
+
+Launch the following command to deploy the project on OVH
+```bash
+terraform apply
+```
+
+To stop the running instance of the application and destroy every resources
+```bash
+terraform destroy
+```
 
 ## The tools we used and why
 
