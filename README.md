@@ -18,6 +18,25 @@ And this command to clone the repository :
 git clone https://github.com/ffireHub/cloud-cadavre-exquis.git
 ```
 
+### Configuration
+
+You have to put you ssh public key in the file terraform/setup_cube/varaibles.tf where it is written "your-ssh-public-key-here"
+You will also need to export all those variables in your environment : 
+```bash
+export OS_AUTH_URL=https://auth.cloud.ovh.net/v3
+export OS_IDENTITY_API_VERSION=3
+export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME:-"Default"}
+export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME:-"Default"}
+export OS_TENANT_ID=your-ovh-tenant-id
+export OS_TENANT_NAME="your-ovh-tenant-name"
+export OS_USERNAME="your-ovh-username"
+export OS_PASSWORD="your-ovh-password"
+export OS_REGION_NAME="your-ovh-region"
+export TF_VAR_OS_APPLICATION_KEY="your-ovh-application-key"
+export TF_VAR_OS_APPLICATION_SECRET="your-ovh-application-secret"
+export TF_VAR_OS_CONSUMER_KEY="your-ovh-consumer-key"
+export TF_VAR_GITHUB_TOKEN="necessary for flux but not used yet"
+```
 
 ### Launching the deployment
 
@@ -36,6 +55,28 @@ terraform apply
 To stop the running instance of the application and destroy every resources
 ```bash
 terraform destroy
+```
+
+To view the deployed application, you can access the URL in terraform/kube.conf by setlecting the ip in the server field
+You would want to select the part between brackets below and past it to your browser to access the application.
+```yaml
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: ...
+    server: https://{57.128.162.218}:6443
+  name: kubernetes
+contexts:
+- context:
+...
+```
+On the webpage you will have the following url http://57.128.162.218 which will work to access the application.
+
+If an error occurs when you click the start button , you will want to restart the verb, adjective and subjects deployment running the following commands : 
+```bash
+kubectl rollout restart deployment cadavre-exquis-release-adjective --kubeconfig terraform/kube.conf -n cloud
+kubectl rollout restart deployment cadavre-exquis-release-subject --kubeconfig terraform/kube.conf -n cloud
+kubectl rollout restart deployment cadavre-exquis-release-verb --kubeconfig terraform/kube.conf -n cloud
 ```
 
 ## The tools we used and why

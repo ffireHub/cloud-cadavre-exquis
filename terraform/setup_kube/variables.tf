@@ -13,5 +13,5 @@ variable "OS_CONSUMER_KEY" {type = string}
 variable "ssh_public_keys" {
   description = "List of SSH public keys"
   type        = list(string)
-  default     = [""]
+  default     = ["your-ssh-public-key-here"]
 }
