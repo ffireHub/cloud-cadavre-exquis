@@ -20,8 +20,8 @@ git clone https://github.com/ffireHub/cloud-cadavre-exquis.git
 
 ### Configuration
 
-You have to put you ssh public key in the file terraform/setup_cube/varaibles.tf where it is written "your-ssh-public-key-here"
-You will also need to export all those variables in your environment : 
+You have to put you ssh public key in the file located at terraform/setup_kube/variables.tf where it is written "your-ssh-public-key-here"
+You will also need to export all those variables in your environment :
 ```bash
 export OS_AUTH_URL=https://auth.cloud.ovh.net/v3
 export OS_IDENTITY_API_VERSION=3
@@ -42,22 +42,22 @@ export TF_VAR_GITHUB_TOKEN="necessary for flux but not used yet"
 
 Move into the terraform folder inside the downloaded project. 
 
-Launch this command to initialize the Terraform working directory by creating initial files, loading remote state, download modules.
+Launch this command to initialize the Terraform working directory by creating initial files, loading remote state, download modules:
 ```bash
 terraform init
 ```
 
-Launch the following command to deploy the project on OVH
+Launch the following command to deploy the project on OVH:
 ```bash
 terraform apply
 ```
 
-To stop the running instance of the application and destroy every resources
+To stop the running instance of the application and destroy every resources:
 ```bash
 terraform destroy
 ```
 
-To view the deployed application, you can access the URL in terraform/kube.conf by setlecting the ip in the server field
+To view the deployed application, you can access the URL in terraform/kube.conf by selecting the IP address in the server field.
 You would want to select the part between brackets below and past it to your browser to access the application.
 ```yaml
 apiVersion: v1
@@ -72,18 +72,18 @@ contexts:
 ```
 On the webpage you will have the following url http://57.128.162.218 which will work to access the application.
 
-If an error occurs when you click the start button , you will want to restart the verb, adjective and subjects deployment running the following commands : 
+If an error occurs when you click the start button, you will want to restart the verb, adjective and subjects deployment running the following commands in the terraform folder:
 ```bash
-kubectl rollout restart deployment cadavre-exquis-release-adjective --kubeconfig terraform/kube.conf -n cloud
-kubectl rollout restart deployment cadavre-exquis-release-subject --kubeconfig terraform/kube.conf -n cloud
-kubectl rollout restart deployment cadavre-exquis-release-verb --kubeconfig terraform/kube.conf -n cloud
+kubectl rollout restart deployment cadavre-exquis-release-adjective --kubeconfig kube.conf -n cloud
+kubectl rollout restart deployment cadavre-exquis-release-subject --kubeconfig kube.conf -n cloud
+kubectl rollout restart deployment cadavre-exquis-release-verb --kubeconfig kube.conf -n cloud
 ```
 
 ## The tools we used and why
 
 ### Terraform
 
-Terraform is an open-source infrastructure as code software tool that allows us to define and provision a datacenter infrastructure using a high-level configuration language. We chose Terraform for its ability to manage complex infrastructure with simple, declarative configurations and its support for multiple providers such as OpenStack and OVH.
+Terraform is an open-source infrastructure as code software tool that allows us to define and provision a datacenter infrastructure (OVH) using a high-level configuration language. We chose Terraform for its ability to manage complex infrastructure with simple, declarative configurations and its support for multiple providers such as OpenStack and OVH.
 
 #### ssh key pair in both openstack & ovh api
 
@@ -95,7 +95,7 @@ Security groups are used to control access to resources within our cloud environ
 
 #### openstack_compute_instance_v2 "Debian 12"
 
-We utilize Terraform to provision OpenStack compute instances. For our deployments, we have chosen Fedora 38 for its cutting-edge features and robust community support. Terraform allows us to automate the deployment of these instances, ensuring consistency and reliability across our infrastructure.
+We use Terraform to provision OpenStack compute instances. For our deployments, we have chosen Debian 12 for its cutting-edge features and robust community support. Terraform allows us to automate the deployment of these instances, ensuring consistency and reliability across our infrastructure.
 
 ### Ansible
 
@@ -105,27 +105,58 @@ Ansible is an open-source tool for software provisioning, configuration manageme
 
 Kubernetes is an open-source system for automating deployment, scaling, and management of containerized applications. We chose Kubernetes for its powerful orchestration capabilities, which allow us to manage our applications at scale efficiently.
 
-#### Architecture
+### Helm
 
-Our Kubernetes architecture consists of a controller and worker nodes, ensuring high availability and scalability of our applications.
+Helm is an essential tool for managing Kubernetes applications. Helm allows to define, install, and upgrade even the most complex Kubernetes application. Here's how you can use Helm for deploying our application: 
 
-##### A Controller
+#### Packaging the Application
+
+Use the helm package command to package the application into a Helm chart. This package will contain all the necessary files and configurations needed for deploying our application.
+If you want to try, you can run this command, inside the helm folder:
+```bash
+helm package .
+```
+
+#### Creating a Helm Repository
+
+Once the chart is packaged, you can create a Helm repository to store and share the charts. Use the helm repo index command to generate an index file for the repository. This index file helps Helm identify available charts and their versions. Place the packaged chart and the generated index file on a web server or use a cloud storage service that supports static file serving.
+If you want to try, you can run this command, inside the helm folder:
+```bash
+helm repo index .
+```
+
+#### Setting the Number of Replicas
+
+When deploying the application, you may want to specify the number of replicas for your deployment. This can be done by setting the replicaCount value in your Helm chart's values.yaml file or by passing the --set flag during the installation. For example, to set the number of replicas to 3, you would use inside the helm folder:
+
+```bash
+helm install my-release . --set replicaCount=3
+```
+
+Adjust my-release to the name you want to give your deployment.
+
+
+### Architecture
+
+Our Kubernetes architecture consists of a controller and two worker nodes, ensuring high availability and scalability of our applications.
+
+#### A Controller
 
 The controller node acts as the brain of the Kubernetes cluster, managing its state and configuration. It includes components like the API server.
 
-##### A Worker
+#### Two Workers
 
-Worker nodes are responsible for running the containerized applications and are managed by the controller node. Each worker node runs kubelet, which communicates with the Kubernetes API to manage containers and pods.
+Worker nodes are responsible for running the containerized applications and are managed by the controller node. Each worker node runs kubelet, which communicates with the Kubernetes API to manage containers and pods. If one worker is down, the other one takes the workload.
 
-#### Kubeadm
+### Kubeadm
 
 Kubeadm is a tool that helps you bootstrap a minimum viable Kubernetes cluster that conforms to best practices. We use kubeadm to simplify the process of setting up and configuring our Kubernetes cluster.
 
-#### Kubectl
+### Kubectl
 
-Kubectl is a command-line tool that allows us to run commands against Kubernetes clusters. We use it to deploy applications, inspect and manage cluster resources, and view logs.
+Kubectl is a command-line tool that allows us to run commands against Kubernetes clusters. We use it to deploy applications, inspect and manage cluster resources, and view logs. We use it often through K9s.
 
-#### Kubelet
+### Kubelet
 
 Kubelet is an agent that runs on each node in the cluster. It ensures that containers are running in a Pod.
 
